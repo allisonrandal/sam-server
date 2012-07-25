@@ -1,0 +1,10 @@
+#JSGF V1.0;
+grammar samgrammar;
+public <understand> = ( <greeting> | <appreciation> | <command> );
+<greeting> = hello sam;
+<appreciation> = thanks sam;
+<command> = sam ( <coat> | <greet> | <fan> );
+<coat> = do I need a coat;
+<greet> = greet the audience;
+<fan> = turn <switch> the fan;
+<switch> = ( on | off );

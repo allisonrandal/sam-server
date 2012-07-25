@@ -1,0 +1,110 @@
+#!/usr/bin/env python
+
+import zmq
+import re
+import json
+from daemon import runner
+
+SUB_HOST = "10.0.3.36" # aggregator
+SUB_PORT = 5555
+PUB_HOST = "10.0.3.36"
+PUB_PORT = 5551
+
+class Brain():
+    def __init__(self):
+        self.stdin_path = '/dev/null'
+        self.stdout_path = '/dev/tty'
+        self.stderr_path = '/dev/tty'
+        self.pidfile_path =  '/tmp/sam-braind.pid'
+        self.pidfile_timeout = 5
+
+    def run(self):
+        context = zmq.Context()
+ 
+        subscriber = context.socket (zmq.SUB)
+        sub_address = "tcp://%s:%d" % (SUB_HOST, SUB_PORT)
+        subscriber.connect (sub_address)
+        subscriber.setsockopt (zmq.SUBSCRIBE, "TEMPIN")
+        subscriber.setsockopt (zmq.SUBSCRIBE, "TEMPOUT")
+        subscriber.setsockopt (zmq.SUBSCRIBE, "LUX")
+        subscriber.setsockopt (zmq.SUBSCRIBE, "WEATHER")
+        subscriber.setsockopt (zmq.SUBSCRIBE, "HUMIDITY")
+        subscriber.setsockopt (zmq.SUBSCRIBE, "HEAR")
+        subscriber.setsockopt (zmq.SUBSCRIBE, "FAN")
+ 
+        self.publisher = context.socket (zmq.PUB)
+        pub_address = "tcp://%s:%d" % (PUB_HOST, PUB_PORT)
+        self.publisher.bind (pub_address)
+        self.state = json.load(open("/home/ubuntu/sam-server/services/web/public/state.json"))
+
+        # daemon loop
+        while True:
+            message = subscriber.recv()
+            self.think(message)
+
+    def think(self, message):
+        words = message.split(" ")
+        msgtype = words[0]
+        if (msgtype == "FAN"):
+            self.state['fan'] = words[1]
+            self.share_state()
+        elif (msgtype == "TEMPIN"):
+            self.store_temp('internal', words)
+        elif (msgtype == "TEMPOUT"):
+            self.store_temp('external', words)
+        elif (msgtype == "LUX"):
+            self.state['light']['lux'] = words[1]
+            self.share_state()
+        elif (msgtype == "WEATHER"):
+            self.state['weather'] = message[8:]
+            self.share_state()
+        elif (msgtype == "HUMIDITY"):
+            self.state['humidity'] = message[9:]
+            self.share_state()
+        elif (msgtype == "HEAR"):
+            if (re.search("turn on the fan", message)):
+                self.do("FAN on")
+            elif (re.search("turn off the fan", message)):
+                self.do("FAN off")
+            elif (words[2] == "greet" and words[4] == "audience"):
+                self.do("SPEAK hello everyone")
+            elif (re.search("hello sam", message)):
+                self.do("SPEAK hello Allison")
+            elif (re.search("thanks sam", message)):
+                self.do("SPEAK You're welcome")
+            elif (re.search("coat", message)):
+                self.coat(message)
+
+    def do(self, message):
+        self.publisher.send(message)
+
+    def coat(self, message):
+        if (self.state['temperature']['external']['F'] > 78):
+            self.do("SPEAK Not today, it's hot outside.")
+        elif (self.state['temperature']['external']['F'] > 70 ):
+            self.do("SPEAK No it's warm today.")
+        elif (self.state['temperature']['external']['F'] > 60 ):
+            self.do("SPEAK Take a light one.")
+        elif (self.state['temperature']['external']['F'] > 40 ):
+            self.do("SPEAK Yes it's quite cool.")
+        else:
+            self.do("SPEAK Bundle up, it's cold today.")
+
+    def store_temp(self, location, words):
+        temp_state = words[1]
+        temp_unit = words[2]
+        if (temp_unit == 'F'):
+            self.state['temperature'][location]['F'] = temp_state
+            self.state['temperature'][location]['C'] = "%0.2f" % ((int(temp_state) - 32) / 1.8)
+        elif (temp_unit == 'C'):
+            self.state['temperature'][location]['C'] = temp_state
+            self.state['temperature'][location]['F'] = "%0.2f" % ((int(temp_state) * 1.8) + 32)
+        self.share_state()
+
+    def share_state(self):
+        json.dump(self.state, open("/home/ubuntu/sam-server/services/web/public/state.json", "w"))
+
+
+app = Brain()
+daemon_runner = runner.DaemonRunner(app)
+daemon_runner.do_action()

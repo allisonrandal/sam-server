@@ -1,0 +1,47 @@
+#!/usr/bin/env python
+
+import zmq
+from daemon import runner
+
+PUB_HOST = "10.0.3.36"
+PUB_PORT = 5555
+
+class MessageAggregator():
+    def __init__(self):
+        self.stdin_path = '/dev/null'
+        self.stdout_path = '/dev/tty'
+        self.stderr_path = '/dev/tty'
+        self.pidfile_path =  '/tmp/sam-repubd.pid'
+        self.pidfile_timeout = 5
+
+    def run(self):
+        context = zmq.Context()
+ 
+        subscriber = context.socket (zmq.SUB)
+        subscriber.connect ("tcp://10.0.3.36:5551") # braind
+        subscriber.connect ("tcp://10.0.3.1:5556") # tempd
+        subscriber.connect ("tcp://10.0.3.1:5557") # lightd
+        subscriber.connect ("tcp://10.0.3.1:5558") # weatherd
+        subscriber.connect ("tcp://10.0.3.1:5559") # heard
+        subscriber.setsockopt (zmq.SUBSCRIBE, "TEMPIN")
+        subscriber.setsockopt (zmq.SUBSCRIBE, "TEMPOUT")
+        subscriber.setsockopt (zmq.SUBSCRIBE, "LUX")
+        subscriber.setsockopt (zmq.SUBSCRIBE, "WEATHER")
+        subscriber.setsockopt (zmq.SUBSCRIBE, "HUMIDITY")
+        subscriber.setsockopt (zmq.SUBSCRIBE, "HEAR")
+        subscriber.setsockopt (zmq.SUBSCRIBE, "SPEAK")
+        subscriber.setsockopt (zmq.SUBSCRIBE, "FAN")
+ 
+        publisher = context.socket (zmq.PUB)
+        pub_address = "tcp://%s:%d" % (PUB_HOST, PUB_PORT)
+        publisher.bind (pub_address)
+
+        # daemon loop
+        while True:
+            message = subscriber.recv()
+            publisher.send (message)
+
+
+app = MessageAggregator()
+daemon_runner = runner.DaemonRunner(app)
+daemon_runner.do_action()

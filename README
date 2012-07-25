@@ -1,0 +1,39 @@
+Copyright (C) 2012, Allison Randal.
+
+Sam is a smart home appliance, or Smart Apartment Monitor (a backronym).
+
+LICENSE
+
+This code is distributed under the terms of the MIT License. For more details,
+see the full text of the license in the file 'LICENSE'.
+
+INSTALLATION
+
+Before running Sam, you'll need several libraries. The core requirements are
+ZeroMQ, and the python daemon library:
+
+$ sudo apt-get install python-zmq
+$ sudo apt-get install python-daemon
+
+The TinkerForge brick APIs (used for collecting sensor data, like temperature,
+humidity, and light levels) require a daemon downloaded from the TinkerForge
+website, which depends on Twisted, GUDev, and libusb:
+
+$ sudo apt-get install python-twisted python-gudev libusb-1.0-0
+$ wget http://download.tinkerforge.com/tools/brickd/linux/brickd_linux_latest.deb
+$ sudo dpkg -i brickd_linux_latest.deb
+
+If you want to do web scraping (for collecting weather information) install
+BeautifulSoup:
+
+$ sudo apt-get install python-beautifulsoup
+
+For voice recognition, install PocketSphinx:
+
+$ sudo apt-get install python-pocketsphinx gstreamer0.10-pocketsphinx
+
+USAGE
+
+Sam can be started directly from the source directory with the command:
+
+  make testrun

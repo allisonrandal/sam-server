@@ -1,0 +1,47 @@
+#!/usr/bin/env python
+
+import zmq
+import time
+
+import urllib2
+from BeautifulSoup import BeautifulSoup
+
+from daemon import runner
+
+PUB_HOST = "10.0.3.1"
+PUB_PORT = 5558
+PUB_FREQUENCY = 10 # in seconds
+
+class WeatherWatch():
+    def __init__(self):
+        self.stdin_path = '/dev/null'
+        self.stdout_path = '/dev/tty'
+        self.stderr_path = '/dev/tty'
+        self.pidfile_path =  '/tmp/sam-weatherd.pid'
+        self.pidfile_timeout = 5
+
+    def run(self):
+        pub_context = zmq.Context()
+        publisher = pub_context.socket (zmq.PUB)
+        pub_address = "tcp://%s:%d" % (PUB_HOST, PUB_PORT)
+        publisher.bind (pub_address)
+
+        # daemon loop
+        while True:
+            # once per hour, fetch the data
+            page = urllib2.urlopen("http://w1.weather.gov/obhistory/KBFI.html")
+            soup = BeautifulSoup(page)
+            row = soup.find('tr', bgcolor="#eeeeee")
+            cols = row.findAll('td')
+            temperature = int(cols[6].string.strip())
+            message = "TEMPOUT %d F" % (temperature)
+
+            # send it several times, in case subscribers missed it
+            for i in range(0, 3600, PUB_FREQUENCY):
+                publisher.send(message)
+                time.sleep(PUB_FREQUENCY)
+
+
+app = WeatherWatch()
+daemon_runner = runner.DaemonRunner(app)
+daemon_runner.do_action()

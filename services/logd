@@ -1,0 +1,43 @@
+#!/usr/bin/env python
+
+import zmq
+import datetime
+
+from daemon import runner
+
+SUB_HOST = "10.0.3.36" # aggregator
+SUB_PORT = 5555
+
+class MessageLog():
+    def __init__(self):
+        self.stdin_path = '/dev/null'
+        self.stdout_path = '/dev/tty'
+        self.stderr_path = '/dev/tty'
+        self.pidfile_path =  '/tmp/sam-logd.pid'
+        self.pidfile_timeout = 5
+
+    def run(self):
+
+        sub_context = zmq.Context()
+        subscriber = sub_context.socket (zmq.SUB)
+        sub_address = "tcp://%s:%d" % (SUB_HOST, SUB_PORT)
+        subscriber.connect (sub_address)
+        subscriber.setsockopt (zmq.SUBSCRIBE, "TEMPIN")
+        subscriber.setsockopt (zmq.SUBSCRIBE, "TEMPOUT")
+        subscriber.setsockopt (zmq.SUBSCRIBE, "LUX")
+        subscriber.setsockopt (zmq.SUBSCRIBE, "WEATHER")
+        subscriber.setsockopt (zmq.SUBSCRIBE, "HUMIDITY")
+        subscriber.setsockopt (zmq.SUBSCRIBE, "HEAR")
+        subscriber.setsockopt (zmq.SUBSCRIBE, "SPEAK")
+        subscriber.setsockopt (zmq.SUBSCRIBE, "FAN")
+
+        # daemon loop
+        while True:
+            message = subscriber.recv()
+            timestamp = datetime.datetime.now()
+            print("["+str(timestamp)+"] "+message)
+
+
+app = MessageLog()
+daemon_runner = runner.DaemonRunner(app)
+daemon_runner.do_action()

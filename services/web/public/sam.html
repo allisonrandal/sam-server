@@ -1,0 +1,50 @@
+<!DOCTYPE html> 
+<html> 
+  <head> 
+    <title>S.A.M.</title> 
+    <meta name="viewport" content="width=device-width, initial-scale=1"> 
+    <link rel="stylesheet" href="http://code.jquery.com/mobile/1.1.0/jquery.mobile-1.1.0.min.css" />
+    <script type="text/javascript" src="http://code.jquery.com/jquery-1.6.4.min.js"></script>
+    <script type="text/javascript" src="http://code.jquery.com/mobile/1.1.0/jquery.mobile-1.1.0.min.js"></script>
+    <script type="text/javascript">
+          $(document).ready(function(){
+              $.getJSON("http://10.0.3.36:8080/state.json", function(data) {
+                $('#temp_internal').html( data.temperature.internal.F + '&deg;F / ' +
+                                          data.temperature.internal.C + '&deg;C');
+                $('#temp_external').html( data.temperature.external.F + '&deg;F / ' +
+                                          data.temperature.external.C + '&deg;C');
+                $('#light_internal').html(data.light.lux + ' Lux');
+                $('#humidity').html(data.humidity);
+                $('#weather').html(data.weather);
+              });
+          });
+
+    </script>
+  </head> 
+  <body> 
+
+    <div data-role="page" data-theme="a">
+      <header data-role=header>
+        <h1>Sam</h1>
+      </header>
+
+      <div data-role="content">	
+        <ul data-role="listview" data-inset="true">
+          <li>Indoor Temp: <span id="temp_internal"></span></li>
+          <li>Indoor Light: <span id="light_internal"></span></li>
+          <li>Outdoor Temp: <span id="temp_external"></span></li>
+          <li>Outdoor Rel. Humidity: <span id="humidity"></span></li>
+          <li>Weather: <span id="weather"></span></li>
+        </ul>
+
+        <div data-role="fieldcontain">
+          <label for="switch-fan">Fan:</label>
+          <select name="slider" id="switch-fan" data-role="slider" data-theme="a">
+            <option value="off">Off</option>
+            <option value="on">On</option>
+          </select> 
+        </div>
+      </div><!-- /content -->
+    </div><!-- /page -->
+  </body>
+</html>

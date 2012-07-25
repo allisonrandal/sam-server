@@ -1,0 +1,47 @@
+#!/usr/bin/env python
+
+import zmq
+import time
+
+from tinkerforge.ip_connection import IPConnection
+from tinkerforge.bricklet_ambient_light import AmbientLight
+
+from daemon import runner
+
+BRICK_HOST = "localhost"
+BRICK_PORT = 4223
+BRICK_UID = "8Wd" # UID of light bricklet
+
+PUB_HOST = "10.0.3.1"
+PUB_PORT = 5557
+
+class LightSensor():
+    def __init__(self):
+        self.stdin_path = '/dev/null'
+        self.stdout_path = '/dev/tty'
+        self.stderr_path = '/dev/tty'
+        self.pidfile_path =  '/tmp/sam-lightd.pid'
+        self.pidfile_timeout = 5
+
+    def run(self):
+        brick_ipcon = IPConnection(BRICK_HOST, BRICK_PORT) # Create IP connection to brickd
+        brick_al = AmbientLight(BRICK_UID) # Create device object
+        brick_ipcon.add_device(brick_al) # Add device to IP connection
+
+        pub_context = zmq.Context()
+        publisher = pub_context.socket (zmq.PUB)
+        pub_address = "tcp://%s:%d" % (PUB_HOST, PUB_PORT)
+        publisher.bind (pub_address)
+
+        # daemon loop
+        while True:
+            # Get current illuminance (unit is Lux/10)
+            illuminance = brick_al.get_illuminance()/10.0
+            message = "LUX %d" % (illuminance)
+            publisher.send(message)
+            time.sleep(10)
+
+
+app = LightSensor()
+daemon_runner = runner.DaemonRunner(app)
+daemon_runner.do_action()
